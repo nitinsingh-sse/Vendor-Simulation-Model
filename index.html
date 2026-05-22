@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarSquare 2-Install Simulator</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --panel: #ffffff;
+    --border: #e6e4dc;
+    --border-strong: #d4d0c4;
+    --text: #1c1c1a;
+    --text-soft: #6b6b66;
+    --text-faint: #94948c;
+    --accent: #c84a1c;
+    --accent-soft: #f4ddd0;
+    --success: #1d9e75;
+    --success-soft: #d6efe6;
+    --warning: #ef9f27;
+    --warning-soft: #fbe9c8;
+    --danger: #e24b4a;
+    --danger-soft: #f8d8d6;
+    --info: #2563a5;
+    --info-soft: #d6e3f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+    padding: 16px;
+    min-height: 100vh;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .panel h3 {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-soft);
+  }
+  label.field {
+    display: block;
+    margin-bottom: 12px;
+  }
+  label.field .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  label.field .row span:first-child { font-size: 13px; color: var(--text); }
+  label.field .row span:last-child { font-size: 13px; font-weight: 600; }
+  input[type="range"] { width: 100%; }
+  input[type="number"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 6px; align-items: center; }
+  .grid-3 input { height: 28px; }
+  .grid-3 .label-cell { font-size: 12px; }
+  button.solve {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  button.solve:hover { opacity: 0.9; }
+  button.solve:disabled { opacity: 0.5; cursor: wait; }
+  .status {
+    padding: 12px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+  }
+  .status.solving { background: var(--warning-soft); color: var(--warning); }
+  .status.ok { background: var(--success-soft); color: var(--success); }
+  .status.err { background: var(--danger-soft); color: var(--danger); }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .kpi {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .kpi .label { font-size: 11px; color: var(--text-soft); margin: 0; }
+  .kpi .value { font-size: 22px; font-weight: 600; margin: 4px 0 0; }
+  .kpi.success { background: var(--success-soft); }
+  .kpi.success .label, .kpi.success .value { color: var(--success); }
+  .compare {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .compare.success { background: var(--success-soft); border-color: var(--success); }
+  .compare .label { font-size: 11px; color: var(--text-soft); margin: 0; }
+  .compare .value { font-size: 16px; font-weight: 600; margin: 2px 0 0; }
+  .chart {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .chart-bars { display: flex; align-items: flex-end; height: 80px; gap: 2px; }
+  .chart-bar { flex: 1; background: var(--info-soft); border-radius: 2px 2px 0 0; min-height: 2px; }
+  .chart-bar.peak { background: var(--warning); }
+  table.roster {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  table.roster th, table.roster td {
+    padding: 4px 4px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  table.roster th {
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-weight: 600;
+  }
+  table.roster th.day, table.roster td.day {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: var(--panel);
+    z-index: 1;
+    min-width: 70px;
+  }
+  table.roster tr.peak { background: rgba(239, 159, 39, 0.05); }
+  table.roster tr.peak td.day { background: #faeeda; }
+  .cell {
+    padding: 2px 1px;
+    border-radius: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+    min-width: 36px;
+  }
+  .cell.DD { background: var(--success); color: white; font-weight: 600; }
+  .cell.SD { background: var(--info-soft); color: var(--info); }
+  .cell.SL { background: var(--danger); color: white; font-weight: 600; }
+  .cell.idle { color: var(--text-faint); }
+  table.pnl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.pnl th, table.pnl td {
+    padding: 6px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.pnl th { text-align: left; font-weight: 600; color: var(--text-soft); }
+  table.pnl th.num { text-align: right; }
+  table.pnl td.num { text-align: right; }
+  table.pnl tr.below { background: rgba(226, 75, 74, 0.06); }
+  table.pnl tr.green { background: rgba(29, 158, 117, 0.05); }
+  table.pnl tfoot td { font-weight: 600; background: var(--bg); padding: 10px 6px; border-top: 2px solid var(--border-strong); }
+  table.sim {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.sim th, table.sim td {
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.sim th { text-align: left; color: var(--text-soft); }
+  table.sim td.num { text-align: right; }
+  table.sim tr.pass { background: rgba(29, 158, 117, 0.06); }
+  .scroll-x { overflow-x: auto; max-height: 600px; overflow-y: auto; }
+  .alert { padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; font-size: 12px; }
+  .alert.warning { background: var(--warning-soft); color: var(--warning); }
+  .alert.danger { background: var(--danger-soft); color: var(--danger); }
+  .alert.success { background: var(--success-soft); color: var(--success); }
+  .checkbox-cell { text-align: center; }
+  .checkbox-cell input { width: auto; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- LEFT COLUMN -->
+  <div>
+    <div class="panel">
+      <h3>Sliders</h3>
+      <label class="field">
+        <div class="row"><span>Peak to BAU ratio</span><span id="r-peak">1.3</span></div>
+        <input type="range" id="s-peak" min="1" max="2" step="0.1" value="1.3">
+      </label>
+      <label class="field">
+        <div class="row"><span>Slip % on 2-install sites</span><span id="r-sl2">10%</span></div>
+        <input type="range" id="s-sl2" min="0" max="30" step="1" value="10">
+      </label>
+      <label class="field">
+        <div class="row"><span>Slip % on 1-install sites</span><span id="r-sl1">20%</span></div>
+        <input type="range" id="s-sl1" min="0" max="30" step="1" value="20">
+      </label>
+      <label class="field">
+        <div class="row"><span>2i eligibility % (daily)</span><span id="r-elig">40%</span></div>
+        <input type="range" id="s-elig" min="20" max="100" step="1" value="40">
+      </label>
+      <label class="field">
+        <div class="row"><span>Total sites in month</span><span id="r-tot">530</span></div>
+        <input type="range" id="s-tot" min="200" max="1000" step="10" value="530">
+      </label>
+    </div>
+
+    <div class="panel">
+      <h3>Assumptions</h3>
+      <div style="font-size: 11px; color: var(--text-faint); margin-bottom: 6px;">Slab rates & DD eligibility</div>
+      <div class="grid-3" style="margin-bottom: 4px; font-size: 10px; color: var(--text-faint);">
+        <span>Slab</span><span>Rate (₹)</span><span>DD?</span>
+      </div>
+      <div class="grid-3" style="margin-bottom: 4px;">
+        <span class="label-cell">S1</span>
+        <input type="number" id="a-s1" value="8000">
+        <div class="checkbox-cell"><input type="checkbox" id="dd-s1" checked></div>
+      </div>
+      <div class="grid-3" style="margin-bottom: 4px;">
+        <span class="label-cell">S2</span>
+        <input type="number" id="a-s2" value="8500">
+        <div class="checkbox-cell"><input type="checkbox" id="dd-s2" checked></div>
+      </div>
+      <div class="grid-3" style="margin-bottom: 4px;">
+        <span class="label-cell">S3</span>
+        <input type="number" id="a-s3" value="10000">
+        <div class="checkbox-cell"><input type="checkbox" id="dd-s3"></div>
+      </div>
+      <div class="grid-3" style="margin-bottom: 8px;">
+        <span class="label-cell">S4</span>
+        <input type="number" id="a-s4" value="15000">
+        <div class="checkbox-cell"><input type="checkbox" id="dd-s4"></div>
+      </div>
+
+      <div style="font-size: 11px; color: var(--text-faint); margin-bottom: 6px;">Slab mix %</div>
+      <div class="grid-2" style="margin-bottom: 8px;">
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>S1%</span></div>
+          <input type="number" id="a-mix1" value="9.8" step="0.1">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>S2%</span></div>
+          <input type="number" id="a-mix2" value="79.6" step="0.1">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>S3%</span></div>
+          <input type="number" id="a-mix3" value="10.0" step="0.1">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>S4%</span></div>
+          <input type="number" id="a-mix4" value="0.6" step="0.1">
+        </label>
+      </div>
+
+      <div style="font-size: 11px; color: var(--text-faint); margin-bottom: 6px;">Costs & constraints</div>
+      <div class="grid-2">
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>2i cost</span></div>
+          <input type="number" id="a-c2" value="180000">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>1i cost</span></div>
+          <input type="number" id="a-c1" value="140000">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>DD discount</span></div>
+          <input type="number" id="a-disc" value="0.7" step="0.05">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>Days/month</span></div>
+          <input type="number" id="a-days" value="30">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>Baseline ₹/site</span></div>
+          <input type="number" id="a-base" value="10572">
+        </label>
+        <label class="field" style="margin: 0;">
+          <div class="row"><span>Profit floor</span></div>
+          <input type="number" id="a-floor" value="0" step="1000">
+        </label>
+      </div>
+
+      <button class="solve" id="solve-btn">Run solver</button>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+    <div id="status" class="status">Ready. Adjust inputs and click Run solver.</div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><p class="label">2i vendors</p><p class="value" id="k-v2">—</p></div>
+      <div class="kpi"><p class="label">1i vendors</p><p class="value" id="k-v1">—</p></div>
+      <div class="kpi"><p class="label">Modelled payout</p><p class="value" id="k-pay">—</p></div>
+      <div class="kpi success"><p class="label">SSE savings</p><p class="value" id="k-sav">—</p></div>
+    </div>
+
+    <div id="compare" class="compare">
+      <div><p class="label">Avg 2i profit</p><p class="value" id="avg-2i">—</p></div>
+      <div><p class="label">Avg 1i profit</p><p class="value" id="avg-1i">—</p></div>
+      <div><p class="label">2i spread</p><p class="value" id="spread-2i">—</p></div>
+      <div><p class="label">1i spread</p><p class="value" id="spread-1i">—</p></div>
+    </div>
+
+    <div id="alerts"></div>
+
+    <div class="panel" id="sim-panel" style="display:none;">
+      <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Vendor combination simulations</div>
+      <table class="sim">
+        <thead>
+          <tr>
+            <th>2i</th><th>1i</th><th>Total</th><th>Status</th><th class="num">Min profit</th>
+          </tr>
+        </thead>
+        <tbody id="sim-rows"></tbody>
+      </table>
+    </div>
+
+    <div class="chart">
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Daily demand</div>
+      <div id="chart" class="chart-bars"></div>
+    </div>
+
+    <div class="panel">
+      <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Vendor roster calendar</div>
+      <div class="scroll-x">
+        <table id="roster" class="roster"></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px;">Per-vendor P&amp;L</div>
+      <div style="max-height: 400px; overflow-y: auto;">
+        <table class="pnl">
+          <thead>
+            <tr>
+              <th>Vendor</th><th>Type</th>
+              <th class="num">DD</th><th class="num">SD</th><th class="num">SL</th>
+              <th class="num">Idle</th><th class="num">Sites</th>
+              <th class="num">Util</th>
+              <th class="num">Fixed</th><th class="num">Payout</th><th class="num">Profit</th>
+            </tr>
+          </thead>
+          <tbody id="v-rows"></tbody>
+          <tfoot id="v-foot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const val = id => parseFloat($(id).value);
+
+function fmtINR(n) {
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a >= 10000000) return sign + '₹' + (a/10000000).toFixed(2) + 'Cr';
+  if (a >= 100000) return sign + '₹' + (a/100000).toFixed(2) + 'L';
+  if (a >= 1000) return sign + '₹' + (a/1000).toFixed(1) + 'K';
+  return sign + '₹' + Math.round(a).toLocaleString('en-IN');
+}
+const fmtFull = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+function updateLabels() {
+  $('r-peak').textContent = val('s-peak').toFixed(1);
+  $('r-sl2').textContent = val('s-sl2') + '%';
+  $('r-sl1').textContent = val('s-sl1') + '%';
+  $('r-elig').textContent = val('s-elig') + '%';
+  $('r-tot').textContent = parseInt($('s-tot').value);
+}
+
+['s-peak','s-sl2','s-sl1','s-elig','s-tot'].forEach(id => {
+  $(id).addEventListener('input', updateLabels);
+});
+updateLabels();
+
+function getSolveUrl() {
+  if (window.location.protocol === 'file:') {
+    return 'http://127.0.0.1:5000/solve';
+  }
+  return `${window.location.origin}/solve`;
+}
+
+async function runSolver() {
+  const btn = $('solve-btn');
+  btn.disabled = true;
+  $('status').className = 'status solving';
+  $('status').textContent = 'Solving... (target under 20 seconds)';
+
+  const params = {
+    total_sites: parseInt($('s-tot').value),
+    days: parseInt($('a-days').value),
+    peak_ratio: val('s-peak'),
+    elig_pct: val('s-elig') / 100,
+    sl2_rate: val('s-sl2') / 100,
+    sl1_rate: val('s-sl1') / 100,
+    slab_rates: [val('a-s1'), val('a-s2'), val('a-s3'), val('a-s4')],
+    slab_mix: [val('a-mix1')/100, val('a-mix2')/100, val('a-mix3')/100, val('a-mix4')/100],
+    dd_elig_slabs: [$('dd-s1').checked, $('dd-s2').checked, $('dd-s3').checked, $('dd-s4').checked],
+    cost_2i: val('a-c2'),
+    cost_1i: val('a-c1'),
+    dd_discount: val('a-disc'),
+    baseline_per_site: val('a-base'),
+    profit_floor: val('a-floor'),
+    time_limit_sec: 20,
+  };
+
+  const solveUrl = getSolveUrl();
+  const t0 = performance.now();
+  try {
+    const r = await fetch(solveUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(params),
+    });
+    const data = await r.json();
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+    btn.disabled = false;
+    if (!data.ok) {
+      $('status').className = 'status err';
+      $('status').textContent = '❌ ' + data.reason + (data.traceback ? '\n' + data.traceback : '');
+      renderSimulations(data.simulations || []);
+      return;
+    }
+    render(data, elapsed);
+  } catch (e) {
+    btn.disabled = false;
+    $('status').className = 'status err';
+    $('status').textContent = '❌ Request failed: ' + e.message + ' (backend: ' + solveUrl + ')';
+  }
+}
+
+function renderSimulations(simulations) {
+  const panel = $('sim-panel');
+  if (!simulations.length) {
+    panel.style.display = 'none';
+    $('sim-rows').innerHTML = '';
+    return;
+  }
+  panel.style.display = '';
+  $('sim-rows').innerHTML = simulations.map(s => `
+    <tr${s.all_green ? ' class="pass"' : ''}>
+      <td>${s.v2}</td>
+      <td>${s.v1}</td>
+      <td>${s.total_v}</td>
+      <td>${s.all_green ? 'green P&L' : s.status}</td>
+      <td class="num">${s.min_profit === null || s.min_profit === undefined ? '-' : fmtINR(s.min_profit)}</td>
+    </tr>
+  `).join('');
+}
+
+function render(data, elapsed) {
+  $('status').className = 'status ok';
+  renderSimulations(data.simulations || []);
+  $('status').textContent = `✓ Solved in ${elapsed}s — ${data.v2} 2i + ${data.v1} 1i = ${data.total_v} vendors · status: ${data.status}`;
+
+  $('k-v2').textContent = data.v2;
+  $('k-v1').textContent = data.v1;
+  $('k-pay').textContent = fmtINR(data.total_payout);
+  $('k-sav').textContent = data.savings_pct.toFixed(1) + '%';
+
+  const adv = data.avg_2i - data.avg_1i;
+  $('compare').className = 'compare' + (adv > 0 ? ' success' : '');
+  $('avg-2i').textContent = fmtINR(data.avg_2i);
+  $('avg-1i').textContent = fmtINR(data.avg_1i);
+  $('spread-2i').textContent = fmtINR(data.spread_2i);
+  $('spread-1i').textContent = fmtINR(data.spread_1i);
+
+  // Alerts
+  const profitFloor = val('a-floor');
+  const v2Below = data.vendors.filter(v => v.type === '2-Install' && v.below_floor).length;
+  const v1Below = data.vendors.filter(v => v.type === '1-Install' && v.below_floor).length;
+  const v2Tot = data.vendors.filter(v => v.type === '2-Install').length;
+  const v1Tot = data.vendors.filter(v => v.type === '1-Install').length;
+  const alerts = [];
+  if (adv <= 0 && v2Tot && v1Tot) {
+    alerts.push({lvl:'danger', t:`2i avg (${fmtINR(data.avg_2i)}) ≤ 1i avg (${fmtINR(data.avg_1i)}) — vendors won't sign 2i contracts. Try raising 1i fixed cost or DD discount.`});
+  }
+  if (v2Below > 0) {
+    const minP = Math.min(...data.vendors.filter(v => v.type === '2-Install').map(v => v.profit));
+    alerts.push({lvl:'warning', t:`${v2Below}/${v2Tot} 2i vendors below ₹${profitFloor.toLocaleString('en-IN')} (min ${fmtINR(minP)}).`});
+  }
+  if (v1Below > 0) {
+    const minP = Math.min(...data.vendors.filter(v => v.type === '1-Install').map(v => v.profit));
+    alerts.push({lvl:'warning', t:`${v1Below}/${v1Tot} 1i vendors below ₹${profitFloor.toLocaleString('en-IN')} (min ${fmtINR(minP)}).`});
+  }
+  if (!alerts.length && data.vendors.every(v => !v.below_floor)) {
+    alerts.push({lvl:'success', t:`Optimal: ${data.total_v} vendors. 2i advantage: +${fmtINR(adv)}.`});
+    alerts.push({lvl:'success', t:`All vendor P&Ls are green at or above ${fmtINR(profitFloor)} floor.`});
+  }
+  if (data.warning) {
+    alerts.push({lvl:'warning', t: data.warning});
+  }
+  if (data.quality) {
+    const q = data.quality;
+    const s4Target = q.slab_target_counts[3] || 0;
+    const s4Actual = q.slab_actual_counts[3] || 0;
+    if (Math.abs(q.slippage_gap) > 1) {
+      alerts.push({lvl:'danger', t:`Slippage mismatch: actual ${q.slippage_actual} vs expected ${q.slippage_expected_rounded} sites.`});
+    } else {
+      alerts.push({lvl:'success', t:`Slippage adherence: actual ${q.slippage_actual} vs expected ${q.slippage_expected_rounded} sites.`});
+    }
+    if (s4Actual !== s4Target) {
+      alerts.push({lvl:'warning', t:`S4 site distribution mismatch: actual ${s4Actual} vs target ${s4Target}.`});
+    } else {
+      alerts.push({lvl:'success', t:`S4 site distribution adhered: ${s4Actual} sites.`});
+    }
+  }
+  $('alerts').innerHTML = alerts.map(a => `<div class="alert ${a.lvl}">${a.t}</div>`).join('');
+
+  // Chart
+  const maxD = Math.max(...data.daily);
+  $('chart').innerHTML = data.daily.map((d, i) => {
+    const h = (d / maxD) * 100;
+    const peak = (i === data.peak_day) ? ' peak' : '';
+    return `<div class="chart-bar${peak}" style="height:${h}%" title="Day ${i+1}: ${d} sites"></div>`;
+  }).join('');
+
+  // Roster
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = '<thead><tr>';
+  html += '<th class="day">Day</th><th>Dem</th><th>Prs</th>';
+  for (let v = 0; v < data.total_v; v++) {
+    html += `<th>V${String(v+1).padStart(2,'0')}${v < data.v2 ? '(2i)' : '(1i)'}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  for (let d = 0; d < data.daily.length; d++) {
+    const isPeak = d === data.peak_day;
+    html += `<tr${isPeak ? ' class="peak"' : ''}>`;
+    html += `<td class="day">${d+1} ${DAY_NAMES[(d + 3) % 7]}</td>`;
+    html += `<td>${data.daily[d]}</td>`;
+    html += `<td>${data.pair_count_per_day[d]}</td>`;
+    for (let v = 0; v < data.total_v; v++) {
+      const c = data.roster[v][d];
+      let label;
+      if (c.type === 'DD') label = `DD<br><span style="font-size:8px;opacity:0.9;">${c.label}</span>`;
+      else if (c.type === 'SD') label = `SD<br><span style="font-size:8px;opacity:0.85;">${c.label}</span>`;
+      else if (c.type === 'SL') label = 'SL';
+      else label = '—';
+      html += `<td style="padding:0;"><div class="cell ${c.type}">${label}</div></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  $('roster').innerHTML = html;
+
+  // P&L rows
+  $('v-rows').innerHTML = data.vendors.map(v => `
+    <tr class="${v.below_floor ? 'below' : 'green'}">
+      <td>${v.name}</td>
+      <td>${v.type}</td>
+      <td class="num">${v.dd_days}</td>
+      <td class="num">${v.sd_sites}</td>
+      <td class="num">${v.sl_days}</td>
+      <td class="num">${v.idle_days}</td>
+      <td class="num">${v.sites}</td>
+      <td class="num">${v.utilization.toFixed(1)}%</td>
+      <td class="num">${fmtFull(v.fixed_cost)}</td>
+      <td class="num">${fmtFull(v.payout)}</td>
+      <td class="num" style="color:${v.below_floor ? 'var(--danger)' : 'var(--success)'};font-weight:600;">${fmtFull(v.profit)}</td>
+    </tr>
+  `).join('');
+
+  // Totals
+  const totDD = data.vendors.reduce((s,x)=>s+x.dd_days,0);
+  const totSD = data.vendors.reduce((s,x)=>s+x.sd_sites,0);
+  const totSL = data.vendors.reduce((s,x)=>s+x.sl_days,0);
+  const totIdle = data.vendors.reduce((s,x)=>s+x.idle_days,0);
+  const totSites = data.vendors.reduce((s,x)=>s+x.sites,0);
+  $('v-foot').innerHTML = `
+    <tr>
+      <td>Total</td><td></td>
+      <td class="num">${totDD}</td>
+      <td class="num">${totSD}</td>
+      <td class="num">${totSL}</td>
+      <td class="num">${totIdle}</td>
+      <td class="num">${totSites}</td>
+      <td class="num"></td>
+      <td class="num">${fmtINR(data.total_cost)}</td>
+      <td class="num">${fmtINR(data.total_payout)}</td>
+      <td class="num" style="color:${data.total_profit >= 0 ? 'var(--success)' : 'var(--danger)'};">${fmtINR(data.total_profit)}</td>
+    </tr>
+  `;
+}
+
+$('solve-btn').addEventListener('click', runSolver);
+</script>
+</body>
+</html>
