@@ -1,0 +1,5 @@
+flask
+ortools
+gunicorn
+pandas
+numpy
