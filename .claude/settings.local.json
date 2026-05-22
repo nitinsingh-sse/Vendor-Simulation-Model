@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue; where.exe gh 2>$null; \\(Get-Command git\\).Source)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Nitin Singh\\\\Desktop\\\\solarsquare-simulator\" log --oneline -3)",
+      "PowerShell(git -C \"C:\\\\Users\\\\Nitin Singh\\\\Desktop\\\\solarsquare-simulator\" remote get-url origin)"
+    ]
+  }
+}
