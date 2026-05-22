@@ -430,20 +430,27 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
     day_sl = [model.NewIntVar(0, total_v, f'day_sl_{d}') for d in range(days)]
     for d in range(days):
         model.Add(day_sl[d] == sum(is_sl[v][d] for v in range(total_v)))
-    
+
     day_sl_max = model.NewIntVar(0, total_v, 'day_sl_max')
     day_sl_min = model.NewIntVar(0, total_v, 'day_sl_min')
     sl_operational_days = day_sl[1:] if days > 1 else day_sl
     model.AddMaxEquality(day_sl_max, sl_operational_days)
     model.AddMinEquality(day_sl_min, sl_operational_days)
-    
-    if peak_ratio > 1.1:
-        model.Add(day_sl_max - day_sl_min <= 2)
-    else:
-        model.Add(day_sl_max - day_sl_min <= max(4, total_v // 3))
-    
-    if peak_day > 0:
-        model.Add(day_sl[peak_day] >= 1)
+
+    # Per-day SL floor: prevent clustering by ensuring every day (d>=1) carries its
+    # share of slippages. Floor is capped by the day's remaining vendor capacity
+    # (total_v minus vendors committed to DD/SD) so we never ask for more SLs than
+    # there are available vendor slots. This forces SLs onto peak days too.
+    sl_per_day_floor = max(1, expected_total_sl // days)
+    for d in range(1, days):
+        available = total_v - pair_count_per_day[d] - sd_count_per_day[d]
+        day_floor = min(sl_per_day_floor, max(0, available))
+        if day_floor >= 1:
+            model.Add(day_sl[d] >= day_floor)
+
+    # Spread cap relaxed to 3 to handle capacity variation across days without
+    # making the model infeasible when some days have tight vendor budgets.
+    model.Add(day_sl_max - day_sl_min <= 3)
 
     # C9: minimum vendor utilisation removed as per user request
 
