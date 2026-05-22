@@ -430,6 +430,18 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
     day_sl = [model.NewIntVar(0, total_v, f'day_sl_{d}') for d in range(days)]
     for d in range(days):
         model.Add(day_sl[d] == sum(is_sl[v][d] for v in range(total_v)))
+    
+    day_sl_max = model.NewIntVar(0, total_v, 'day_sl_max')
+    day_sl_min = model.NewIntVar(0, total_v, 'day_sl_min')
+    sl_operational_days = day_sl[1:] if days > 1 else day_sl
+    model.AddMaxEquality(day_sl_max, sl_operational_days)
+    model.AddMinEquality(day_sl_min, sl_operational_days)
+    
+    if peak_ratio > 1.1:
+        model.Add(day_sl_max - day_sl_min <= 2)
+    else:
+        model.Add(day_sl_max - day_sl_min <= max(4, total_v // 3))
+    
     if peak_day > 0:
         model.Add(day_sl[peak_day] >= 1)
 
@@ -468,17 +480,13 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
         model.AddMaxEquality(sd1_max, sd_count_v[v2:])
         model.AddMinEquality(sd1_min, sd_count_v[v2:])
 
-    # Penalize idle days on high-demand days to push SL into the peak
-    min_demand = min(daily)
-    idle_peak_penalty = sum(is_idle[v][d] * (daily[d] - min_demand) for v in range(total_v) for d in range(days))
-
     # Minimize spread (weighted)
     model.Minimize(
         (dd_max - dd_min) * 1000 +
         (sd2_max - sd2_min) * 1000 +
         (sd1_max - sd1_min) * 1000 +
         (sl_max - sl_min) * 1000 +
-        idle_peak_penalty
+        (day_sl_max - day_sl_min) * 1000
     )
 
     solver = cp_model.CpSolver()

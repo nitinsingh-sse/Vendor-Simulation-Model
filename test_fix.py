@@ -12,8 +12,7 @@ r = solve(
     [True, True, False, False],
     180000, 140000, 0.7,
     time_limit_sec=30,
-    profit_floor=0,
-    min_vendor_utilization=0.50
+    profit_floor=0
 )
 
 if r is None or r.get('error'):
@@ -36,8 +35,7 @@ r2 = solve(
     [True, True, False, False],
     180000, 140000, 0.7,
     time_limit_sec=30,
-    profit_floor=0,
-    min_vendor_utilization=0.50
+    profit_floor=0
 )
 
 if r2 is None or r2.get('error'):
