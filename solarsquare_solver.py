@@ -274,7 +274,7 @@ def solve(total_sites, days, peak_ratio, elig_pct, sl2_rate, sl1_rate,
                     'all_green': False,
                 })
                 break
-            per_attempt_time = min(10.0, remaining)
+            per_attempt_time = min(30.0, remaining)
             print(f"\nTrying v2={v2}, v1={v1} (total={v2+v1})...")
             result = solve_with_counts(
                 v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
@@ -483,8 +483,9 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = float(time_limit_sec)
-    solver.parameters.num_search_workers = 8
+    solver.parameters.num_search_workers = 1
     solver.parameters.random_seed = 42  # Add seed for more deterministic behavior
+    solver.parameters.randomize_search = False
     status = solver.Solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):

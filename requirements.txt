@@ -1,5 +1,5 @@
-flask
-ortools
-gunicorn
-pandas
-numpy
+flask==3.0.3
+ortools==9.10.4067
+numpy==1.26.4
+pandas==2.2.2
+gunicorn==22.0.0
