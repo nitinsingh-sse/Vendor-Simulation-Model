@@ -437,20 +437,27 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
     model.AddMaxEquality(day_sl_max, sl_operational_days)
     model.AddMinEquality(day_sl_min, sl_operational_days)
 
-    # Per-day SL floor: prevent clustering by ensuring every day (d>=1) carries its
-    # share of slippages. Floor is capped by the day's remaining vendor capacity
-    # (total_v minus vendors committed to DD/SD) so we never ask for more SLs than
-    # there are available vendor slots. This forces SLs onto peak days too.
-    sl_per_day_floor = max(1, expected_total_sl // days)
-    for d in range(1, days):
-        available = total_v - pair_count_per_day[d] - sd_count_per_day[d]
-        day_floor = min(sl_per_day_floor, max(0, available))
-        if day_floor >= 1:
-            model.Add(day_sl[d] >= day_floor)
-
-    # Spread cap relaxed to 3 to handle capacity variation across days without
-    # making the model infeasible when some days have tight vendor budgets.
-    model.Add(day_sl_max - day_sl_min <= 3)
+    # SL opportunity cost — the P&L-aware SL/idle distribution rule:
+    #
+    # Placing a SL on a HIGH-demand day costs vendor earnings:
+    #   the vendor earns ₹0 on SL day, but on a busy day they could have
+    #   done productive work (DD/SD) if enough slots existed.
+    # Placing a SL on a LOW-demand day is P&L-neutral:
+    #   the vendor's alternative would have been IDLE anyway (also ₹0).
+    #
+    # We model this by adding sum(demand[d] * SL[v,d]) to the objective.
+    # High demand → high cost per SL → solver prefers SLs on low-demand days.
+    # Weight is intentionally 1 (small) so that work-spread equalization
+    # (weight 10000) always dominates; this only guides PLACEMENT once
+    # work allocation is already equalized.
+    #
+    # The day-spread term (weight 50, soft) prevents extreme day-clustering
+    # while still allowing SLs to follow the natural low-demand preference.
+    sl_opp_cost = sum(
+        daily[d] * is_sl[v][d]
+        for v in range(total_v)
+        for d in range(days)
+    )
 
     # C9: minimum vendor utilisation removed as per user request
 
@@ -487,13 +494,27 @@ def solve_with_counts(v2, v1, daily, dd_pairs_per_day, sd_slabs_per_day,
         model.AddMaxEquality(sd1_max, sd_count_v[v2:])
         model.AddMinEquality(sd1_min, sd_count_v[v2:])
 
-    # Minimize spread (weighted)
+    # Objective — three-tier priority:
+    #
+    # Tier 1 (weight 10000): equalize work across vendors — DD days, SD days,
+    #   and per-vendor SL count must all be within ±1 between any two vendors.
+    #   This protects vendor P&L equality.
+    #
+    # Tier 2 (weight 50): soft day-SL spread — gently discourages all vendors
+    #   from clustering SL days on the exact same calendar day.
+    #
+    # Tier 3 (weight 1): SL opportunity cost — within any equally-spread
+    #   solution, prefer assigning SLs to low-demand days (where the vendor's
+    #   alternative is idle, so SL is P&L-neutral) rather than high-demand days
+    #   (where the vendor could earn). Demand range ~8–28 → cost range ~640–2240
+    #   across 80 SLs, well below one unit of Tier-1 spread (10000).
     model.Minimize(
-        (dd_max - dd_min) * 1000 +
-        (sd2_max - sd2_min) * 1000 +
-        (sd1_max - sd1_min) * 1000 +
-        (sl_max - sl_min) * 1000 +
-        (day_sl_max - day_sl_min) * 1000
+        (dd_max - dd_min) * 10000 +
+        (sd2_max - sd2_min) * 10000 +
+        (sd1_max - sd1_min) * 10000 +
+        (sl_max - sl_min) * 10000 +
+        (day_sl_max - day_sl_min) * 50 +
+        sl_opp_cost
     )
 
     solver = cp_model.CpSolver()
