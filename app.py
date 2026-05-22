@@ -43,8 +43,7 @@ def solve_api():
             cost_1i=p["cost_1i"],
             dd_discount=p["dd_discount"],
             time_limit_sec=p["time_limit_sec"],
-            profit_floor=p.get("profit_floor", 0),
-            max_vendor_search_extra=p.get("max_vendor_search_extra", 15)
+            profit_floor=p.get("profit_floor", 0)
         )
 
         if result is None or result.get("error"):

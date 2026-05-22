@@ -68,7 +68,7 @@ MIN_VENDOR_UTILIZATION = 0.50  # min active days per vendor as % of month
 
 # Solver options
 SOLVE_TIME_LIMIT_SEC = 20  # max time to spend solving
-MAX_VENDOR_SEARCH_EXTRA = 15  # vendor-count combinations to try above lower bound
+MAX_VENDOR_SEARCH_EXTRA = 6  # fewer combo attempts for faster local runs
 SL_TOLERANCE = 1           # ±1 day on SL target match (C7)
 
 
@@ -197,8 +197,7 @@ def compute_daily_demand(daily, slab_mix, dd_elig_slabs, elig_pct):
 
 def solve(total_sites, days, peak_ratio, elig_pct, sl2_rate, sl1_rate,
           slab_rates, slab_mix, dd_elig_slabs, cost_2i, cost_1i, dd_discount,
-          time_limit_sec=60, profit_floor=0,
-          max_vendor_search_extra=MAX_VENDOR_SEARCH_EXTRA):
+          time_limit_sec=60, profit_floor=0):
     """Run the CP-SAT model. Returns dict with roster and metrics, or None if infeasible."""
 
     # 1. Compute demand
@@ -226,32 +225,15 @@ def solve(total_sites, days, peak_ratio, elig_pct, sl2_rate, sl1_rate,
     )
 
     # 2. Compute lower bounds on vendor count for search
-
-    # Pre-compute per-day SL targets (same formula used in solve_with_counts) so
-    # we can derive an SL-aware lower bound before the search starts.
-    sl_weights_lb = [0.0]
-    for d in range(1, days):
-        sl_weights_lb.append(
-            pair_count_per_day[d - 1] * 2 * sl2_rate +
-            sd_count_per_day[d - 1] * sl1_rate
-        )
-    target_sl_lb = int_distribute(expected_total_sl, sl_weights_lb)
-
     lb_v2 = 0
     for d in range(days - 1):
         lb_v2 = max(lb_v2, pair_count_per_day[d] + pair_count_per_day[d + 1])
     lb_v2 = max(lb_v2, pair_count_per_day[peak_day])
 
-    # SL-aware bound: each day d needs pair_count[d] + sd_count[d] + target_sl[d]
-    # vendors simultaneously (work + SL slots), so total_v must be at least that max.
-    lb_from_sl = max(
-        (pair_count_per_day[d] + sd_count_per_day[d] + target_sl_lb[d])
-        for d in range(1, days)
-    )
-
-    # 1i lower bound: peak SD minus 2i slack, plus SL demand on peak day
+    # 1i lower bound: peak SD + SL(>=1 on peak day) minus (2i vendors not doing DD on peak)
+    # C5 (no idle on peak) + day_sl[peak_day]>=1 means total_v >= peak_dd + peak_sd + 1
     v2_off_peak = lb_v2 - pair_count_per_day[peak_day]
-    lb_v1 = max(0, sd_count_per_day[peak_day] + target_sl_lb[peak_day] - v2_off_peak)
+    lb_v1 = max(0, sd_count_per_day[peak_day] + 1 - v2_off_peak)
 
     # Capacity lower bound: C8 requires >= ceil(days/10) rest days per vendor,
     # so each vendor can work at most (days - rest) days.
@@ -261,12 +243,8 @@ def solve(total_sites, days, peak_ratio, elig_pct, sl2_rate, sl1_rate,
         lb_capacity = math.ceil(total_active_slots_required / available_work_days)
     else:
         lb_capacity = total_active_slots_required
-
-    # Apply all lower bounds
     if lb_v2 + lb_v1 < lb_capacity:
         lb_v1 = lb_capacity - lb_v2
-    if lb_v2 + lb_v1 < lb_from_sl:
-        lb_v1 = lb_from_sl - lb_v2
 
     print(f"Lower bounds: 2i >= {lb_v2}, 1i >= {lb_v1}")
     print(f"Daily demand: {daily}")
@@ -278,7 +256,7 @@ def solve(total_sites, days, peak_ratio, elig_pct, sl2_rate, sl1_rate,
     # 3. Try increasing vendor counts until feasible. Each attempt is a vendor
     # combination simulation; only schedules with green per-vendor P&L pass.
     simulations = []
-    for total_extra in range(0, max_vendor_search_extra + 1):
+    for total_extra in range(0, MAX_VENDOR_SEARCH_EXTRA + 1):
         for v2_extra in range(0, total_extra + 1):
             v1_extra = total_extra - v2_extra
             v2 = lb_v2 + v2_extra
